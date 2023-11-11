@@ -1,14 +1,12 @@
 import express from 'express';
-import path from "path"
+// import path from "path"
 const app = express();
 
+app.set("view engine", "ejs");//Setting up view engine
+
 app.get("/", (req, res) => {
-    // res.sendStatus(404)
-    res.json({
-        Name: "Steve",
-        Profession: "Engineer",
-        Skills: []
-    })
+    res.render("index", { name: "Rishi" });
+
 });
 
 app.get("/about", (req, res) => {
