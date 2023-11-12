@@ -10,9 +10,8 @@ const msgSchema = new mongoose.Schema({
     name: String, email: String,
 })
 
-const Msg = mongoose.model("Message", msgSchema)
+const Message = mongoose.model("Message", msgSchema)
 const app = express();
-const users = [];
 
 
 //Middleware
@@ -26,13 +25,7 @@ app.get("/", (req, res) => {
 
 });
 
-app.get("/add", (req, res) => {
-    Msg.create({ name: "Rishi", email: "Rishi@gmail.com" }).then(() => {
-        res.send("nice")
 
-    });
-
-});
 
 app.get("/about", (req, res) => {
     res.status(400).send("About Page not found")
@@ -41,8 +34,10 @@ app.get("/about", (req, res) => {
 app.get("/success", (req, res) => {
     res.render("success");
 })
-app.post("/", (req, res) => {
-    users.push({ username: req.body.name, email: req.body.email });
+app.post("/", async (req, res) => {
+    const { name, email } = req.body;
+
+    await Message.create({ name, email });
     res.redirect("/success");
 });
 
