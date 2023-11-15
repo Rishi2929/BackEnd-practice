@@ -2,16 +2,20 @@ import express from 'express';
 import path from "path";
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 
-mongoose.connect('mongodb://localhost:27017/', {
+mongoose.connect('mongodb+srv://singhrishi2929:Qpt6VFbp2nLTOczt@cluster0.uhufrfq.mongodb.net/?retryWrites=true&w=majority', {
     dbName: "backend",
 }).then(c => console.log("Database connected")).catch(e => console.log("Database not connected"));
 
-const msgSchema = new mongoose.Schema({
-    name: String, email: String,
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    password: String
 })
 
-const Message = mongoose.model("Message", msgSchema)
+const User = mongoose.model("User", userSchema)
 const app = express();
 
 
@@ -20,27 +24,83 @@ app.use(express.static(path.join(path.resolve(), "public")));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 
-app.set("view engine", "ejs");//Setting up view engine
+//Setting up view engine
+app.set("view engine", "ejs");
 
-app.get("/", (req, res) => {
-    // res.cookie("token", "iamin");
+const isAuthenticated = async (req, res, next) => {
     const { token } = req.cookies;
     if (token) {
-        res.render("logout",);
+        const decoded = jwt.verify(token, "fdjkljkjkksdfdd");
+        req.user = await User.findById(decoded._id)
+        next();
     } else {
-
         res.render("login",);
-
     }
+}
+
+
+app.get("/", isAuthenticated, (req, res) => {
+    // console.log(req.user )
+    res.render("logout", { name: req.user.name });
 });
 
-app.post("/login", (req, res) => {
-    res.cookie("token", "iamin", {
+app.get("/register", (req, res) => {
+    // console.log(req.user )
+    res.render("register");
+});
+
+
+app.get("/login", (req, res) => {
+    res.render("login")
+})
+
+
+app.post("/register", async (req, res) => {
+    // console.log(req.body)
+    const { name, email, password } = req.body;
+
+    let user = await User.findOne({ email });
+
+    if (user) {
+        return res.redirect("/login")
+    }
+    const hashedPassword = await bcrypt.hash(password, 10)
+    user = await User.create({
+        name,
+        email,
+        password: hashedPassword
+    });
+
+    const token = jwt.sign({ _id: user._id }, "fdjkljkjkksdfdd");
+    console.log(token)
+
+    res.cookie("token", token, {
         httpOnly: true,
     });
     res.redirect("/")
 })
 
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+    let user = await User.findOne({ email });
+    if (!user) {
+        return res.redirect("/register")
+    }
+
+    // const isMatch = user.password === password;
+    const isMatch = await bcrypt.compare(password, user.password);
+
+
+    if (!isMatch) return res.render("login", { email, message: "Incorrect Password" })
+
+    const token = jwt.sign({ _id: user._id }, "fdjkljkjkksdfdd");
+
+    res.cookie("token", token, {
+        httpOnly: true,
+    });
+    res.redirect("/")
+
+})
 
 app.get("/logout", (req, res) => {
     res.cookie("token", null, {
@@ -52,26 +112,9 @@ app.get("/logout", (req, res) => {
 
 
 
-app.get("/about", (req, res) => {
-    res.status(400).send("About Page not found")
-})
-
-app.get("/success", (req, res) => {
-    res.render("success");
-})
-app.post("/", async (req, res) => {
-    const { name, email } = req.body;
-
-    await Message.create({ name, email });
-    res.redirect("/success");
-});
 
 
-app.get("/users", (req, res) => {
-    res.json({
-        users,
-    });
-})
+
 
 
 app.listen(3000, () => {
