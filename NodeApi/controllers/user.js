@@ -1,66 +1,67 @@
 import { User } from "../models/user.js";
+import bcrypt from "bcrypt"
+import { sendCookie } from "../utils/features.js";
+import jwt from "jsonwebtoken";
 
 export const getAllUsers = async (req, res) => {
 
-    const users = await User.find({})
-    console.log(req.query.keyword)
-    res.json({
-        success: true,
-        users
+}
+
+export const login = async (req, res, next) => {
+
+    const { email, password } = req.body;
+    const user = await User.findOne({ email }).select("+password");
+
+    if (!user) return res.status(404).json({
+        success: false,
+        message: "Invalid Email or Password"
     });
+
+    const isMatch = await bcrypt.compare(password, user.password)
+    if (!isMatch) return res.status(404).json({
+        success: false,
+        message: "Invalid Email or Password"
+    });
+
+    sendCookie(user, res, `Welcome back, ${user.name}`, 200)
+
 }
 
 export const Register = async (req, res) => {
     const { name, email, password } = req.body;
 
-    await User.create({
-        name,
-        email,
-        password
+    let user = await User.findOne({ email })
+
+    if (user) return res.status(404).json({
+        success: false,
+        message: "User Already Exists"
     });
-    res.status(201).cookie("tempi", "lol").json({
-        success: true,
-        message: "Signed up successfully"
-    });
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    user = await User.create({ name, email, password: hashedPassword })
+
+    sendCookie(user, res, "Registered", 201)
 }
 
-export const special = (req, res) => {
-    res.json({
-        success: true,
-        message: "Just Joking"
-    });
-}
+export const getMyProfile = async (req, res) => {
 
-export const getUserDetail = async (req, res) => {
-    const { id } = req.params;
-    const user = await User.findById(id);
-    // console.log(req.params)
 
-    res.json({
+    const { token } = req.cookies;
+
+    console.log(token)
+
+    if (!token)
+        return res.status(404).json({
+            success: false,
+            message: "Login First"
+        });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    const user = await User.findById(decoded._id);
+    res.status(200).json({
         success: true,
         user,
-    });
-}
+    })
+};
 
-export const Update = async (req, res) => {
-    const { id } = req.params;
-    const user = await User.findById(id);
-    // console.log(req.params)
-
-    res.json({
-        success: true,
-        message: "updated",
-    });
-}
-
-export const Delete = async (req, res) => {
-    const { id } = req.params;
-    const user = await User.findById(id);
-    // console.log(req.params)
-    await User.deleteOne({ _id: id });
-
-    res.json({
-        success: true,
-        message: "deleted",
-    });
-}
